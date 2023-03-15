@@ -1,0 +1,105 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  asperaKP:
+    Description: Amazon EC2 Key Pair
+    Type: "AWS::EC2::KeyPair::KeyName"
+Resources:
+  EC2Instance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType: t2.medium
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      ImageId: resolve:ssm:/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base
+      Tags:
+      - Key: Name
+        Value: Aspera
+      KeyName: !Ref asperaKP
+      UserData: 
+          !Base64 | 
+            <powershell> 
+              $webClient = New-Object System.Net.WebClient;
+              $FFDloadTask = $webClient.DownloadFileTaskAsync("https://download.mozilla.org/?product=firefox-latest&os=win64&lang=en-US", "C:\Users\Administrator\Desktop\firefox_installer.exe");
+
+              $AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"; 
+              $UserKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}";
+              $AWSCLIarguments = "/i `"C:\Users\Administrator\Desktop\AWSCLIV2.msi`" /quiet";
+              Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0; 
+              Set-ItemProperty -Path $UserKey -Name "IsInstalled" -Value 0;
+              Set-MpPreference -DisableRealtimeMonitoring $true;
+
+              Invoke-WebRequest -Uri "https://awscli.amazonaws.com/AWSCLIV2.msi" -Outfile C:\AWSCLIV2.msi
+              $arguments = "/i `"C:\AWSCLIV2.msi`" /quiet"
+              Start-Process msiexec.exe -ArgumentList $arguments -Wait
+              $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine")
+              aws --version
+
+              $AsperaDloadTask = $webClient.DownloadFileTaskAsync("https://d3gcli72yxqn2z.cloudfront.net/downloads/connect/latest/bin/ibm-aspera-connect_4.2.4.265_win64.msi", "C:\Users\Administrator\Desktop\AsperaConnectInstaller.msi");
+               
+              $FFDloadTask.Wait()
+              Start-Process -filepath "C:\Users\Administrator\Desktop\firefox_installer.exe" -argumentlist "-MS" -wait;
+              
+              New-Item -ItemType Directory -Path "C:\Users\Administrator\Desktop\data\" | Out-Null
+              cd "C:\Users\Administrator\Desktop\data";
+              
+              Invoke-Command -ScriptBlock {
+                for ($i=1; $i -le 3; $i++) {
+                  $rand = [System.Guid]::NewGuid().ToString().Substring(0,3)
+                  $webClient.DownloadFile("https://secure.eicar.org/eicar.com", "C:\Users\Administrator\Desktop\data\$rand.mov")
+                }
+              }
+              
+              Invoke-Command -ScriptBlock {
+                  aws s3 cp s3://immersionday-workshops-trendmicro/aspera/media/mov1.mp4 "C:\Users\Administrator\Desktop\data\mov1.mp4"
+                  aws s3 cp s3://immersionday-workshops-trendmicro/aspera/media/mov2.mp4 "C:\Users\Administrator\Desktop\data\mov2.mp4"
+                  aws s3 cp s3://immersionday-workshops-trendmicro/aspera/media/mov3.mov "C:\Users\Administrator\Desktop\data\mov3.mov"
+              }
+            </powershell> 
+      SecurityGroups:
+      - !Ref EC2InstanceSecurityGroup
+  EC2InstanceSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allow RDP access
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 3389
+        ToPort: 3389
+        CidrIp: 0.0.0.0/0
+  EC2InstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Roles:
+      - !Ref AsperaRole
+  AsperaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - sts:AssumeRole
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+      Path: /
+  AsperaRolePolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: AsperaRolePolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - ssm:Connect
+          Resource: '*'
+        - Effect: Allow
+          Action:
+          - s3:GetObject
+          - s3:PutObject
+          - s3:ListBucket
+          Resource: 'arn:aws:s3:::*'
+      Roles:
+      - !Ref AsperaRole
