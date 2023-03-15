@@ -1,0 +1,18 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  AsperaWorkshopBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Join ['', ['aspera-transfer-', !Ref AWS::AccountId]]
+  QuarantineBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Join ['', ['quarantine-', !Ref AWS::AccountId]]
+Outputs:
+  AsperaTransferS3Node:
+    Description: S3 Bucket used to be Aspera to transfer to
+    Value: !Ref AsperaWorkshopBucket
+  QuarantineS3Bucket:
+    Description: S3 Bucket used isolate Malicious objects marked by FSS
+    Value: !Ref QuarantineBucket
