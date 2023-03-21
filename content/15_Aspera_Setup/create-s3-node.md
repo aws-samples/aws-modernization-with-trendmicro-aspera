@@ -113,6 +113,7 @@ pre: "<b>4.2 </b>"
 ---
 
 **7.** Attached the Aspera policy to the Aspera role.
+- Back on the Role Creation page, click the refresh button next to Create Policy
 - Search for the policy by name: ```aspera-s3-policy```
 - Check the box to select.
 - Click **Next**.
