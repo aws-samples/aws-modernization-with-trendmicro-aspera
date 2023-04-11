@@ -108,6 +108,9 @@ Resources:
   ArtifactBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
+    Properties:
+      VersionConfiguration:
+        Status: Enabled
 
   ArtifactBucketPolicy:
     Version: 2012-10-17
