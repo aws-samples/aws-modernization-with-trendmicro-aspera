@@ -109,6 +109,29 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
 
+  ArtifactBucketPolicy:
+    Version: 2012-10-17
+    Id: PutObjPolicy
+    Statement:
+      - Sid: DenyIncorrectEncryptionHeader
+        Effect: Deny
+        Principal: '*'
+        Action: 's3:PutObject'
+        Resource:
+          - !Sub arn:aws:s3:::${ArtifactBucket}/*
+        Condition:
+          StringNotEquals:
+            's3:x-amz-server-side-encryption': 'aws:kms'
+      - Sid: DenyUnEncryptedObjectUploads
+        Effect: Deny
+        Principal: '*'
+        Action: 's3:PutObject'
+        Resource:
+          - !Sub arn:aws:s3:::${ArtifactBucket}/*
+        Condition:
+          'Null':
+            's3:x-amz-server-side-encryption': 'true'
+
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
